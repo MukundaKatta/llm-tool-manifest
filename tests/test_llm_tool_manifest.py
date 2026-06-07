@@ -480,6 +480,22 @@ def test_definition_to_dict_includes_metadata():
     assert t.metadata == {"cost": 0.01}
 
 
+def test_definition_to_dict_input_schema_is_isolated():
+    # Mutating the exported schema (even nested) must not corrupt the source.
+    t = make_search()
+    d = t.to_dict()
+    d["input_schema"]["properties"]["injected"] = {"type": "string"}
+    assert "injected" not in t.input_schema["properties"]
+    assert t.input_schema == SEARCH_SCHEMA
+
+
+def test_definition_to_dict_nested_metadata_is_isolated():
+    t = ToolDefinition(name="t", metadata={"limits": {"max": 1}})
+    d = t.to_dict()
+    d["metadata"]["limits"]["max"] = 999
+    assert t.metadata["limits"]["max"] == 1
+
+
 def test_add_or_replace_new_tool():
     m = ToolManifest()
     m.add_or_replace(make_search())
@@ -499,3 +515,24 @@ def test_to_anthropic_empty_tags_returns_all():
     m.add(make_search())
     m.add(make_read())
     assert len(m.to_anthropic(tags=[])) == 2
+
+
+def test_repr_with_tools():
+    m = ToolManifest(name="agent", version="1.2.3")
+    m.add(make_search())
+    m.add(make_read())
+    r = repr(m)
+    assert "agent" in r
+    assert "tools=2" in r
+    assert "1.2.3" in r
+
+
+def test_all_tags_empty():
+    m = ToolManifest()
+    assert m.all_tags() == []
+
+
+def test_remove_missing_message():
+    m = ToolManifest()
+    with pytest.raises(KeyError, match="nope"):
+        m.remove("nope")

@@ -37,6 +37,7 @@ Example::
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -109,13 +110,17 @@ class ToolDefinition:
         return {"type": "function", "function": func}
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a plain dict representation."""
+        """Return a plain dict representation.
+
+        The returned containers are deep copies, so mutating the result does
+        not affect this definition.
+        """
         return {
             "name": self.name,
             "description": self.description,
-            "input_schema": self.input_schema,
+            "input_schema": deepcopy(self.input_schema),
             "tags": list(self.tags),
-            "metadata": dict(self.metadata),
+            "metadata": deepcopy(self.metadata),
         }
 
 
