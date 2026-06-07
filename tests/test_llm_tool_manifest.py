@@ -307,8 +307,8 @@ def test_filter_by_tag_none():
 
 def test_filter_by_tags_all_required():
     m = ToolManifest()
-    m.add(make_search())   # tags: web, read
-    m.add(make_read())     # tags: fs, read
+    m.add(make_search())  # tags: web, read
+    m.add(make_read())  # tags: fs, read
     # Only search has both "web" and "read"
     result = m.filter_by_tags(["web", "read"])
     assert len(result) == 1
@@ -318,8 +318,8 @@ def test_filter_by_tags_all_required():
 def test_all_tags():
     m = ToolManifest()
     m.add(make_search())  # web, read
-    m.add(make_read())    # fs, read
-    m.add(make_write())   # fs, write
+    m.add(make_read())  # fs, read
+    m.add(make_write())  # fs, write
     tags = m.all_tags()
     assert tags == ["fs", "read", "web", "write"]
 
@@ -341,9 +341,9 @@ def test_to_anthropic_all():
 
 def test_to_anthropic_with_tag_filter():
     m = ToolManifest()
-    m.add(make_search())   # web, read
-    m.add(make_read())     # fs, read
-    m.add(make_write())    # fs, write
+    m.add(make_search())  # web, read
+    m.add(make_read())  # fs, read
+    m.add(make_write())  # fs, write
     result = m.to_anthropic(tags=["web"])
     assert len(result) == 1
     assert result[0]["name"] == "search"
@@ -359,9 +359,9 @@ def test_to_openai_all():
 
 def test_to_openai_with_tag_filter():
     m = ToolManifest()
-    m.add(make_search())   # read
-    m.add(make_read())     # read
-    m.add(make_write())    # write
+    m.add(make_search())  # read
+    m.add(make_read())  # read
+    m.add(make_write())  # write
     result = m.to_openai(tags=["write"])
     assert len(result) == 1
     assert result[0]["function"]["name"] == "write_file"
@@ -388,22 +388,26 @@ def test_validate_missing_description():
 
 def test_validate_non_object_schema():
     m = ToolManifest()
-    m.add(ToolDefinition(
-        name="t",
-        description="desc",
-        input_schema={"type": "string"},
-    ))
+    m.add(
+        ToolDefinition(
+            name="t",
+            description="desc",
+            input_schema={"type": "string"},
+        )
+    )
     warnings = m.validate()
     assert any("should be 'object'" in w for w in warnings)
 
 
 def test_validate_multiple_issues():
     m = ToolManifest()
-    m.add(ToolDefinition(
-        name="t",
-        description="",
-        input_schema={"type": "array"},
-    ))
+    m.add(
+        ToolDefinition(
+            name="t",
+            description="",
+            input_schema={"type": "array"},
+        )
+    )
     warnings = m.validate()
     assert len(warnings) == 2
 
@@ -442,3 +446,56 @@ def test_to_anthropic_empty():
 def test_to_openai_empty():
     m = ToolManifest()
     assert m.to_openai() == []
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage
+# ---------------------------------------------------------------------------
+
+
+def test_property_names_empty_schema():
+    t = ToolDefinition(name="noop")
+    assert t.property_names() == []
+
+
+def test_property_names_sorted():
+    t = ToolDefinition(
+        name="t",
+        input_schema={
+            "type": "object",
+            "properties": {"b": {"type": "string"}, "a": {"type": "string"}},
+        },
+    )
+    assert t.property_names() == ["a", "b"]
+
+
+def test_definition_to_dict_includes_metadata():
+    t = ToolDefinition(name="t", metadata={"cost": 0.01})
+    d = t.to_dict()
+    assert d["metadata"] == {"cost": 0.01}
+    # to_dict must return copies, not the live containers.
+    d["tags"].append("mutated")
+    d["metadata"]["x"] = 1
+    assert t.tags == []
+    assert t.metadata == {"cost": 0.01}
+
+
+def test_add_or_replace_new_tool():
+    m = ToolManifest()
+    m.add_or_replace(make_search())
+    assert m.count() == 1
+    assert "search" in m
+
+
+def test_filter_by_tags_empty_returns_all():
+    m = ToolManifest()
+    m.add(make_search())
+    m.add(make_read())
+    assert len(m.filter_by_tags([])) == 2
+
+
+def test_to_anthropic_empty_tags_returns_all():
+    m = ToolManifest()
+    m.add(make_search())
+    m.add(make_read())
+    assert len(m.to_anthropic(tags=[])) == 2
